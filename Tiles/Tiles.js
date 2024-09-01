@@ -140,42 +140,39 @@ export default class Tiles extends Sprite {
     this.sounds = [new Sound("pop", "./Tiles/sounds/pop.wav")];
 
     this.triggers = [
-      new Trigger(Trigger.GREEN_FLAG, this.whenGreenFlagClicked),
       new Trigger(
         Trigger.BROADCAST,
         { name: "position tiles" },
         this.whenIReceivePositionTiles
       ),
+      new Trigger(
+        Trigger.BROADCAST,
+        { name: "clone level tiles" },
+        this.whenIReceiveCloneLevelTiles
+      ),
     ];
 
-    this.vars.tileX = 256;
-    this.vars.tileY = 208;
-    this.vars.tile = 5;
-  }
-
-  *whenGreenFlagClicked() {
-    this.goto(0, 0);
-    this.size = 200;
-    this.stage.vars.cloneCountX = 16;
-    this.stage.vars.cloneCountY = 13;
-    yield* this.setup();
-    while (true) {
-      this.broadcast("position tiles");
-      yield;
-    }
+    this.vars.tileX = 16;
+    this.vars.tileY = 16;
+    this.vars.tile = 2;
+    this.vars.tileIndex = -12;
   }
 
   *setup() {
     this.visible = true;
-    this.vars.tileX = this.toNumber(this.stage.vars.cloneCountX) * -16;
+    this.vars.tileIndex = 1;
+    this.vars.tileX = 16;
     for (let i = 0; i < this.toNumber(this.stage.vars.cloneCountX); i++) {
-      this.vars.tileY = this.toNumber(this.stage.vars.cloneCountY) * -16;
+      this.vars.tileY = 16;
       for (let i = 0; i < this.toNumber(this.stage.vars.cloneCountY); i++) {
-        this.vars.tile = this.random(3, 19);
         this.createClone();
         this.vars.tileY += 32;
+        this.vars.tileIndex++;
       }
       this.vars.tileX += 32;
+      this.vars.tileIndex +=
+        this.toNumber(this.stage.vars.gridHeight) -
+        this.toNumber(this.stage.vars.cloneCountY);
     }
     this.visible = false;
   }
@@ -191,9 +188,9 @@ export default class Tiles extends Sprite {
       ) > 0
     ) {
       if (this.compare(this.vars.tileX, this.stage.vars.cameraX) < 0) {
-        this.vars.tileX += this.toNumber(this.stage.vars.cloneCountX) * 32;
+        yield* this.loopTileX(this.stage.vars.cloneCountX);
       } else {
-        this.vars.tileX += this.toNumber(this.stage.vars.cloneCountX) * -32;
+        yield* this.loopTileX(0 - this.toNumber(this.stage.vars.cloneCountX));
       }
     }
     if (
@@ -206,9 +203,9 @@ export default class Tiles extends Sprite {
       ) > 0
     ) {
       if (this.compare(this.vars.tileY, this.stage.vars.cameraY) < 0) {
-        this.vars.tileY += this.toNumber(this.stage.vars.cloneCountY) * 32;
+        yield* this.loopTileY(this.stage.vars.cloneCountY);
       } else {
-        this.vars.tileY += this.toNumber(this.stage.vars.cloneCountY) * -32;
+        yield* this.loopTileY(0 - this.toNumber(this.stage.vars.cloneCountY));
       }
     }
     this.costume = "BIG";
@@ -216,6 +213,31 @@ export default class Tiles extends Sprite {
       this.toNumber(this.vars.tileX) - this.toNumber(this.stage.vars.cameraX),
       this.toNumber(this.vars.tileY) - this.toNumber(this.stage.vars.cameraY)
     );
+    this.vars.tile = this.itemOf(
+      this.stage.vars.tileGrid,
+      this.vars.tileIndex - 1
+    );
+    if (this.compare(this.vars.tile, 2) < 0) {
+      this.vars.tile = 2;
+    }
     this.costume = this.vars.tile;
+  }
+
+  *loopTileX(tileSkip) {
+    this.vars.tileX += this.toNumber(tileSkip) * 32;
+    this.vars.tileIndex +=
+      this.toNumber(tileSkip) * this.toNumber(this.stage.vars.gridHeight);
+  }
+
+  *loopTileY(tileSkip) {
+    this.vars.tileY += this.toNumber(tileSkip) * 32;
+    this.vars.tileIndex += this.toNumber(tileSkip);
+  }
+
+  *whenIReceiveCloneLevelTiles() {
+    this.size = 200;
+    this.stage.vars.cloneCountX = 16;
+    this.stage.vars.cloneCountY = 13;
+    yield* this.setup();
   }
 }
